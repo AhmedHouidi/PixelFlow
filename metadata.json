@@ -1,0 +1,6 @@
+{
+  "name": "PixelFlow",
+  "description": "Modern all-in-one image tools. Resize, compress, crop, and convert locally in the browser.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
