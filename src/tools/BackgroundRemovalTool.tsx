@@ -5,7 +5,7 @@ import { Download, Loader2, Sparkles } from 'lucide-react';
 
 const MAX_FILE_SIZE = 22 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = 3.8 * 1024 * 1024;
-const REMOVE_BACKGROUND_ENDPOINT = '/.netlify/functions/remove-background';
+const REMOVE_BACKGROUND_ENDPOINT = '/.netlify/functions/remove-bg';
 
 const prepareUpload = async (file: File): Promise<File> => {
   if (file.size <= MAX_UPLOAD_SIZE) return file;
@@ -36,7 +36,6 @@ const prepareUpload = async (file: File): Promise<File> => {
       canvas.height = targetHeight;
       context.clearRect(0, 0, targetWidth, targetHeight);
       context.drawImage(image, 0, 0, targetWidth, targetHeight);
-
       return new Promise<Blob | null>((resolve) => {
         canvas.toBlob(resolve, 'image/jpeg', quality);
       });
