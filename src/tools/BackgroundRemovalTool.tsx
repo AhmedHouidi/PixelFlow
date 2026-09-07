@@ -34,11 +34,13 @@ export default function BackgroundRemovalTool() {
   };
 
   const handleRemoveBackground = async () => {
-    if (!currentUrl || !files[0]) return;
+    if (!files[0]) return;
     setIsProcessing(true);
     setProgress(0);
     try {
-      const blob = await removeBackground(currentUrl, {
+      const publicPath = `${window.location.origin}${import.meta.env.BASE_URL.replace(/\/+$/, '')}/imgly/`;
+      const blob = await removeBackground(files[0], {
+        publicPath,
         progress: (key: string, current: number, total: number) => {
           const p = Math.round((current / total) * 100);
           setProgress(p > 100 ? 100 : p);
