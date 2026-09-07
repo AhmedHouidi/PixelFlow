@@ -1,29 +1,30 @@
 import { useState, useEffect } from 'react';
 import ToolLayout from '@/components/layout/ToolLayout';
 import { downloadBlob } from '@/lib/utils';
-import { Download, Ghost, Loader2, Sparkles } from 'lucide-react';
-import { removeBackground } from '@imgly/background-removal';
+import { Download, Loader2, Sparkles } from 'lucide-react';
 
-// IMG.LY's model/runtime bundle is hosted separately from the JS package.
-// Using the pinned CDN bundle avoids broken/missing model chunks on static hosts
-// such as Netlify while keeping the actual image processing in the browser.
-const BACKGROUND_REMOVAL_PUBLIC_PATH =
-  import.meta.env.VITE_BACKGROUND_REMOVAL_PUBLIC_PATH ||
-  'https://staticimgly.com/@imgly/background-removal-data/1.7.0/dist/';
+const MAX_FILE_SIZE = 10 * 1024 * 1024;
 
 export default function BackgroundRemovalTool() {
   const [files, setFiles] = useState<File[]>([]);
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
-
   const [processedBlob, setProcessedBlob] = useState<Blob | null>(null);
   const [processedUrl, setProcessedUrl] = useState<string | null>(null);
-
   const [isProcessing, setIsProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
 
   const handleFiles = (selectedFiles: File[]) => {
     const file = selectedFiles[0];
     if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select an image file.');
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE) {
+      alert('Please choose an image smaller than 10 MB.');
+      return;
+    }
 
     if (currentUrl) URL.revokeObjectURL(currentUrl);
     if (processedUrl) URL.revokeObjectURL(processedUrl);
@@ -32,7 +33,6 @@ export default function BackgroundRemovalTool() {
     setCurrentUrl(URL.createObjectURL(file));
     setProcessedBlob(null);
     setProcessedUrl(null);
-    setProgress(0);
   };
 
   const handleClear = () => {
@@ -42,7 +42,6 @@ export default function BackgroundRemovalTool() {
     setCurrentUrl(null);
     setProcessedBlob(null);
     setProcessedUrl(null);
-    setProgress(0);
   };
 
   const handleRemoveBackground = async () => {
@@ -50,29 +49,36 @@ export default function BackgroundRemovalTool() {
     if (!file || isProcessing) return;
 
     setIsProcessing(true);
-    setProgress(0);
     setProcessedBlob(null);
     setProcessedUrl(null);
 
     try {
-      const blob = await removeBackground(file, {
-        publicPath: BACKGROUND_REMOVAL_PUBLIC_PATH,
-        progress: (_key: string, current: number, total: number) => {
-          if (total > 0) {
-            setProgress(Math.min(100, Math.round((current / total) * 100)));
-          }
-        },
+      const formData = new FormData();
+      formData.append('image_file', file, file.name);
+
+      const response = await fetch('/api/remove-background', {
+        method: 'POST',
+        body: formData,
       });
 
+      if (!response.ok) {
+        let message = 'Background removal failed.';
+        try {
+          const data = await response.json();
+          if (data?.error) message = data.error;
+        } catch {
+          // Keep the friendly fallback message when the server does not return JSON.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
       setProcessedBlob(blob);
       setProcessedUrl(URL.createObjectURL(blob));
-      setProgress(100);
     } catch (error) {
       console.error('Background removal failed:', error);
-      const message = error instanceof Error ? error.message : String(error);
-      alert(
-        `Background removal failed. The AI model could not be loaded or processed.\n\n${message}`
-      );
+      const message = error instanceof Error ? error.message : 'Please try again.';
+      alert(`Background removal failed.\n\n${message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -98,24 +104,17 @@ export default function BackgroundRemovalTool() {
 
       <div className="space-y-6 flex-1 text-slate-600 dark:text-slate-400">
         <p className="leading-relaxed">
-          Remove the background from your image instantly using on-device AI.
-          Your image never leaves your browser.
+          Remove the background from your image instantly. Processing is handled securely on the server, so your device does not need to download an AI model.
         </p>
 
         {isProcessing && (
           <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
-            <div className="flex justify-between text-sm mb-2 font-medium text-blue-700 dark:text-blue-300">
-              <span>Loading AI Model...</span>
-              <span>{progress}%</span>
-            </div>
-            <div className="w-full bg-blue-200 dark:bg-blue-900/50 rounded-full h-2">
-              <div
-                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                style={{ width: `${progress}%` }}
-              />
+            <div className="flex items-center gap-2 font-medium text-blue-700 dark:text-blue-300">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span>Removing background...</span>
             </div>
             <p className="text-xs text-blue-500 mt-2 opacity-80">
-              The AI model is downloaded once and then cached by your browser.
+              Your browser is not downloading an AI model.
             </p>
           </div>
         )}
