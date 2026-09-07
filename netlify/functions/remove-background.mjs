@@ -1,5 +1,9 @@
 const REMOVE_BG_URL = 'https://api.remove.bg/v1.0/removebg';
 
+function jsonError(message, status) {
+  return Response.json({ error: message }, { status });
+}
+
 export default async (request) => {
   if (request.method !== 'POST') {
     return new Response('Method Not Allowed', {
@@ -10,10 +14,7 @@ export default async (request) => {
 
   const apiKey = process.env.REMOVE_BG_API_KEY;
   if (!apiKey) {
-    return Response.json(
-      { error: 'Background removal service is not configured yet.' },
-      { status: 503 }
-    );
+    return jsonError('Background removal is not configured. Please add REMOVE_BG_API_KEY in Netlify.', 503);
   }
 
   try {
@@ -21,11 +22,15 @@ export default async (request) => {
     const image = incoming.get('image_file');
 
     if (!(image instanceof File)) {
-      return Response.json({ error: 'Please upload an image file.' }, { status: 400 });
+      return jsonError('Please upload an image file.', 400);
     }
 
     if (!image.type.startsWith('image/')) {
-      return Response.json({ error: 'Only image files are supported.' }, { status: 400 });
+      return jsonError('Only image files are supported.', 400);
+    }
+
+    if (image.size > 22 * 1024 * 1024) {
+      return jsonError('The image is too large. Please use an image under 22 MB.', 413);
     }
 
     const formData = new FormData();
@@ -39,33 +44,56 @@ export default async (request) => {
     });
 
     if (!response.ok) {
-      const details = await response.text();
-      console.error('remove.bg error:', response.status, details);
+      const status = response.status;
+      let providerMessage = '';
 
-      return Response.json(
-        { error: 'The background removal service could not process this image.' },
-        { status: response.status >= 400 && response.status < 600 ? response.status : 502 }
-      );
+      try {
+        const data = await response.json();
+        providerMessage = data?.errors?.[0]?.title || data?.error || '';
+      } catch {
+        // The provider may return plain text for some errors.
+        try {
+          providerMessage = await response.text();
+        } catch {
+          // Keep the generic message below.
+        }
+      }
+
+      console.error('remove.bg error:', status, providerMessage);
+
+      if (status === 401 || status === 403) {
+        return jsonError('The background removal API key is invalid or not authorized.', 502);
+      }
+      if (status === 402) {
+        return jsonError('The free background-removal API limit has been reached.', 402);
+      }
+      if (status === 429) {
+        return jsonError('The background-removal service is temporarily busy. Please try again shortly.', 429);
+      }
+      if (status === 400) {
+        return jsonError(providerMessage || 'This image could not be processed. Try another image.', 400);
+      }
+
+      return jsonError('The background-removal service could not process this image.', 502);
     }
 
     const result = await response.arrayBuffer();
+    const contentType = response.headers.get('content-type') || 'image/png';
+
+    if (!contentType.startsWith('image/')) {
+      return jsonError('The background-removal service returned an invalid result.', 502);
+    }
 
     return new Response(result, {
       status: 200,
       headers: {
-        'Content-Type': response.headers.get('content-type') || 'image/png',
+        'Content-Type': contentType,
+        'Content-Disposition': 'inline; filename="background-removed.png"',
         'Cache-Control': 'no-store',
       },
     });
   } catch (error) {
     console.error('Background removal function failed:', error);
-    return Response.json(
-      { error: 'Something went wrong while removing the background.' },
-      { status: 500 }
-    );
+    return jsonError('Something went wrong while removing the background. Please try again.', 500);
   }
-};
-
-export const config = {
-  path: '/api/remove-background',
 };
