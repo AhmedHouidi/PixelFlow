@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { motion } from "motion/react";
+import { AdSlot } from "@/components/monetization/Monetization";
 
 interface Tool {
   name: string;
@@ -12,23 +13,24 @@ interface Tool {
 
 export default function Home({ tools }: { tools: Tool[] }) {
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="text-center max-w-3xl mx-auto mb-16">
+    <div className="container mx-auto px-4 py-12 md:py-16">
+      <div className="text-center max-w-3xl mx-auto mb-10 md:mb-14">
         <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-white tracking-tight mb-6">
           Everything you need to edit images.
         </h1>
         <p className="text-lg md:text-xl text-slate-600 dark:text-slate-400">
-          Fast, secure, and fully running in your browser. No server uploads.
-          Resize, compress, crop, and convert images instantly.
+          Fast, secure image tools for resizing, compression, cropping, conversion, and more.
         </p>
       </div>
+
+      <AdSlot className="max-w-4xl mx-auto mb-10" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
         {tools.map((tool, i) => {
           const Icon = tool.icon;
           return (
             <Link key={tool.path} to={tool.path}>
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.05 }}
@@ -47,6 +49,8 @@ export default function Home({ tools }: { tools: Tool[] }) {
           );
         })}
       </div>
+
+      <AdSlot className="max-w-4xl mx-auto mt-10" />
     </div>
   );
 }
