@@ -1,7 +1,6 @@
-import { HashRouter, Routes, Route, Link, useLocation } from "react-router-dom";
-import { Moon, Sun, Home, Image as ImageIcon, FileArchive, Scissors, RefreshCw, Sliders, Type, Droplet, Ghost, FileType2, Smile, Code } from "lucide-react";
+import { HashRouter, Routes, Route, Link } from "react-router-dom";
+import { Moon, Sun, Home, Image as ImageIcon, FileArchive, Scissors, RefreshCw, Sliders, Droplet, Ghost, FileType2, Smile, Code } from "lucide-react";
 import React, { useState, useEffect } from "react";
-import { cn } from "@/lib/utils";
 
 import HomeRoute from "@/pages/Home";
 import ResizeTool from "@/tools/ResizeTool";
@@ -15,6 +14,7 @@ import BackgroundRemovalTool from "@/tools/BackgroundRemovalTool";
 import MetadataTool from "@/tools/MetadataTool";
 import MemeTool from "@/tools/MemeTool";
 import Base64Tool from "@/tools/Base64Tool";
+import { ProButton } from "@/components/monetization/Monetization";
 
 const NAV_LINKS = [
   { name: "Resize Image", description: "Resize images by defining new pixels or percentages.", path: "/resize-image", icon: ImageIcon, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
@@ -32,16 +32,11 @@ const NAV_LINKS = [
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [darkMode, setDarkMode] = useState(() => document.documentElement.classList.contains('dark'));
-  
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [darkMode]);
 
-  const toggleDarkMode = () => setDarkMode(!darkMode);
+  useEffect(() => {
+    if (darkMode) document.documentElement.classList.add('dark');
+    else document.documentElement.classList.remove('dark');
+  }, [darkMode]);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-slate-50 font-sans text-slate-900 overflow-hidden dark:bg-slate-950 dark:text-slate-100">
@@ -53,7 +48,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">PixelFlow</span>
           </Link>
-          
+
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
             <Link to="/compress-image" className="hover:text-slate-900 dark:hover:text-white transition-colors">Compress</Link>
             <Link to="/resize-image" className="hover:text-slate-900 dark:hover:text-white transition-colors">Resize</Link>
@@ -62,10 +57,12 @@ function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-4 text-sm">
-          <button 
-            onClick={toggleDarkMode}
+        <div className="flex items-center gap-3 text-sm">
+          <ProButton />
+          <button
+            onClick={() => setDarkMode((value) => !value)}
             className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300"
+            aria-label="Toggle dark mode"
           >
             {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
@@ -73,15 +70,13 @@ function Layout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <div className="flex-1 flex overflow-hidden">
-        {/* Sidebar */}
         <aside className="hidden md:flex w-16 bg-slate-900 flex-col items-center py-6 gap-8 text-slate-400 shrink-0 z-10">
-           <Link to="/" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Home"><Home className="w-6 h-6" /></Link>
-           <Link to="/compress-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Compress"><FileArchive className="w-6 h-6" /></Link>
-           <Link to="/resize-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Resize"><ImageIcon className="w-6 h-6" /></Link>
-           <Link to="/crop-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Crop"><Scissors className="w-6 h-6" /></Link>
+          <Link to="/" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Home"><Home className="w-6 h-6" /></Link>
+          <Link to="/compress-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Compress"><FileArchive className="w-6 h-6" /></Link>
+          <Link to="/resize-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Resize"><ImageIcon className="w-6 h-6" /></Link>
+          <Link to="/crop-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Crop"><Scissors className="w-6 h-6" /></Link>
         </aside>
 
-        {/* Main Content Area */}
         <main className="flex-1 flex flex-col min-w-0 bg-slate-100 dark:bg-slate-950 relative overflow-x-hidden overflow-y-auto">
           {children}
         </main>
