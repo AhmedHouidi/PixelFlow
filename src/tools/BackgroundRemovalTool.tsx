@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import ToolLayout from '@/components/layout/ToolLayout';
 import { downloadBlob } from '@/lib/utils';
-import { Download, Loader2, Sparkles } from 'lucide-react';
+import { AdSlot, canUseFreeBackgroundRemoval, openProCheckout, recordFreeBackgroundRemoval, UsageBadge } from '@/components/monetization/Monetization';
+import { Download, Loader2, Sparkles, Crown } from 'lucide-react';
 
 const MAX_FILE_SIZE = 22 * 1024 * 1024;
 const MAX_UPLOAD_SIZE = 3.8 * 1024 * 1024;
@@ -109,6 +110,11 @@ export default function BackgroundRemovalTool() {
     const file = files[0];
     if (!file || isProcessing) return;
 
+    if (!canUseFreeBackgroundRemoval()) {
+      openProCheckout();
+      return;
+    }
+
     setIsProcessing(true);
     setProcessedBlob(null);
     setProcessedUrl(null);
@@ -144,6 +150,7 @@ export default function BackgroundRemovalTool() {
       }
 
       const blob = await response.blob();
+      recordFreeBackgroundRemoval();
       setProcessedBlob(blob);
       setProcessedUrl(URL.createObjectURL(blob));
     } catch (error) {
@@ -171,14 +178,15 @@ export default function BackgroundRemovalTool() {
 
   const sidebar = (
     <div className="flex flex-col h-full">
-      <h3 className="text-xl font-bold mb-6 text-slate-900 dark:text-white">
+      <h3 className="text-xl font-bold mb-4 text-slate-900 dark:text-white">
         AI Background Removal
       </h3>
 
       <div className="flex-1 text-slate-600 dark:text-slate-400">
-        <p className="leading-relaxed">
+        <p className="leading-relaxed mb-4">
           Remove the background from your image and download a transparent PNG.
         </p>
+        <UsageBadge />
 
         {isProcessing && (
           <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
@@ -190,7 +198,9 @@ export default function BackgroundRemovalTool() {
         )}
       </div>
 
-      <div className="pt-6 border-t border-gray-200 dark:border-gray-800">
+      <div className="pt-5 mt-5 border-t border-gray-200 dark:border-gray-800 space-y-3">
+        <AdSlot />
+
         {!processedBlob ? (
           <button
             onClick={handleRemoveBackground}
@@ -201,6 +211,11 @@ export default function BackgroundRemovalTool() {
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
                 Processing...
+              </>
+            ) : !canUseFreeBackgroundRemoval() ? (
+              <>
+                <Crown className="w-5 h-5" />
+                Upgrade to Continue
               </>
             ) : (
               <>
