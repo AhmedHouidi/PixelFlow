@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import ToolLayout from '@/components/layout/ToolLayout';
 import { downloadBlob } from '@/lib/utils';
 import { Download, Loader2, Sparkles } from 'lucide-react';
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const REMOVE_BACKGROUND_ENDPOINT = '/.netlify/functions/remove-background';
 
 export default function BackgroundRemovalTool() {
   const [files, setFiles] = useState<File[]>([]);
@@ -56,19 +57,28 @@ export default function BackgroundRemovalTool() {
       const formData = new FormData();
       formData.append('image_file', file, file.name);
 
-      const response = await fetch('/api/remove-background', {
+      const response = await fetch(REMOVE_BACKGROUND_ENDPOINT, {
         method: 'POST',
         body: formData,
       });
 
-      if (!response.ok) {
-        let message = 'Background removal failed.';
+      const contentType = response.headers.get('content-type') || '';
+
+      if (!response.ok || !contentType.startsWith('image/')) {
+        let message = `Background removal failed (${response.status}).`;
+
         try {
-          const data = await response.json();
-          if (data?.error) message = data.error;
+          if (contentType.includes('application/json')) {
+            const data = await response.json();
+            if (data?.error) message = data.error;
+          } else {
+            const text = await response.text();
+            if (text && text.length < 500) message = text;
+          }
         } catch {
-          // Keep the friendly fallback message when the server does not return JSON.
+          // Keep the fallback message.
         }
+
         throw new Error(message);
       }
 
@@ -78,7 +88,7 @@ export default function BackgroundRemovalTool() {
     } catch (error) {
       console.error('Background removal failed:', error);
       const message = error instanceof Error ? error.message : 'Please try again.';
-      alert(`Background removal failed.\n\n${message}`);
+      alert(message);
     } finally {
       setIsProcessing(false);
     }
@@ -100,46 +110,51 @@ export default function BackgroundRemovalTool() {
 
   const sidebar = (
     <div className="flex flex-col h-full">
-      <h3 className="text-xl font-bold mb-6 text-slate-900 dark:text-white">AI Background Removal</h3>
+      <h3 className="text-xl font-bold mb-6 text-slate-900 dark:text-white">
+        AI Background Removal
+      </h3>
 
-      <div className="space-y-6 flex-1 text-slate-600 dark:text-slate-400">
+      <div className="flex-1 text-slate-600 dark:text-slate-400">
         <p className="leading-relaxed">
-          Remove the background from your image instantly. Processing is handled securely on the server, so your device does not need to download an AI model.
+          Remove the background from your image and download a transparent PNG.
         </p>
 
         {isProcessing && (
-          <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
+          <div className="mt-6 bg-blue-50 dark:bg-blue-900/20 p-4 rounded-xl border border-blue-100 dark:border-blue-800">
             <div className="flex items-center gap-2 font-medium text-blue-700 dark:text-blue-300">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Removing background...</span>
             </div>
-            <p className="text-xs text-blue-500 mt-2 opacity-80">
-              Your browser is not downloading an AI model.
-            </p>
           </div>
         )}
       </div>
 
-      <div className="pt-6 border-t border-gray-200 dark:border-gray-800 space-y-3">
+      <div className="pt-6 border-t border-gray-200 dark:border-gray-800">
         {!processedBlob ? (
           <button
             onClick={handleRemoveBackground}
             disabled={isProcessing || !files[0]}
-            className="w-full py-4 bg-pink-600 hover:bg-pink-700 text-white rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-full min-h-14 px-5 py-3 bg-pink-600 hover:bg-pink-700 text-white rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isProcessing ? (
-              <><Loader2 className="w-5 h-5 animate-spin" /> Processing...</>
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Processing...
+              </>
             ) : (
-              <><Sparkles className="w-5 h-5" /> Remove Background</>
+              <>
+                <Sparkles className="w-5 h-5" />
+                Remove Background
+              </>
             )}
           </button>
         ) : (
           <button
             onClick={downloadResult}
-            className="w-full py-4 bg-green-600 hover:bg-green-700 text-white rounded-xl font-bold text-lg transition-colors flex items-center justify-center gap-2 shadow-lg shadow-green-500/20"
+            className="w-full min-h-14 px-5 py-3 bg-slate-900 hover:bg-slate-800 dark:bg-white dark:hover:bg-slate-100 dark:text-slate-900 text-white rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2 shadow-sm"
           >
             <Download className="w-5 h-5" />
-            Download PNG (Transparent)
+            Download PNG
           </button>
         )}
       </div>
@@ -156,37 +171,39 @@ export default function BackgroundRemovalTool() {
       sidebar={sidebar}
       multiple={false}
     >
-      <div className="w-full h-full flex flex-col md:flex-row items-center justify-center p-4 gap-8">
+      <div className="w-full h-full flex flex-col md:flex-row items-center justify-center p-4 gap-10">
         {currentUrl && !processedUrl && (
           <div className="relative w-full max-w-lg">
-            <h4 className="absolute -top-8 left-0 font-medium text-slate-500">Original</h4>
-            <img
-              src={currentUrl}
-              alt="Original"
-              className="max-w-full max-h-[70vh] object-contain shadow-xl rounded-lg border-2 border-gray-200 dark:border-gray-800"
-            />
+            <h4 className="mb-3 font-medium text-slate-500">Original</h4>
+            <div className="flex items-center justify-center min-h-40">
+              <img
+                src={currentUrl}
+                alt="Original"
+                className="max-w-full max-h-[70vh] object-contain shadow-xl rounded-lg border-2 border-gray-200 dark:border-gray-800"
+              />
+            </div>
           </div>
         )}
 
         {processedUrl && (
           <>
             <div className="relative w-full max-w-md hidden md:block">
-              <h4 className="absolute -top-8 left-0 font-medium text-slate-500">Original</h4>
+              <h4 className="mb-3 font-medium text-slate-500">Original</h4>
               <img
                 src={currentUrl!}
                 alt="Original"
-                className="max-w-full max-h-[60vh] object-contain rounded-lg border-2 border-gray-200 dark:border-gray-800 opacity-50"
+                className="max-w-full max-h-[60vh] object-contain rounded-lg border-2 border-gray-200 dark:border-gray-800 opacity-60"
               />
             </div>
 
             <div className="relative w-full max-w-lg">
-              <h4 className="absolute -top-8 left-0 font-medium text-green-500 font-bold flex items-center gap-2">
+              <h4 className="mb-3 font-bold text-green-500 flex items-center gap-2">
                 <Sparkles className="w-4 h-4" /> Result
               </h4>
-              <div className="bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMElEQVQ4T2N89uzZfwY8QFJSEp80A+OIAMh8MAwtMIwgGMaGA4FBEAwwDEj1MBgAAH3pEwu8s3xRAAAAAElFTkSuQmCC')] rounded-lg border-2 border-green-500 shadow-2xl shadow-green-500/20 overflow-hidden">
+              <div className="bg-[url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAMElEQVQ4T2N89uzZfwY8QFJSEp80A+OIAMh8MAwtMIwgGMaGA4FBEAwwDEj1MBgAAH3pEwu8s3xRAAAAAElFTkSuQmCC')] rounded-lg border-2 border-green-500 overflow-hidden flex items-center justify-center min-h-40">
                 <img
                   src={processedUrl}
-                  alt="Result"
+                  alt="Background removed result"
                   className="max-w-full max-h-[70vh] object-contain"
                 />
               </div>
