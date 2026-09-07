@@ -14,7 +14,8 @@ import BackgroundRemovalTool from "@/tools/BackgroundRemovalTool";
 import MetadataTool from "@/tools/MetadataTool";
 import MemeTool from "@/tools/MemeTool";
 import Base64Tool from "@/tools/Base64Tool";
-import { ProButton } from "@/components/monetization/Monetization";
+import { ProButton, AdSlot } from "@/components/monetization/Monetization";
+import { AuthButton } from "@/components/auth/Auth";
 
 const NAV_LINKS = [
   { name: "Resize Image", description: "Resize images by defining new pixels or percentages.", path: "/resize-image", icon: ImageIcon, color: "text-blue-500", bg: "bg-blue-50 dark:bg-blue-900/20" },
@@ -39,46 +40,39 @@ function Layout({ children }: { children: React.ReactNode }) {
   }, [darkMode]);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-slate-50 font-sans text-slate-900 overflow-hidden dark:bg-slate-950 dark:text-slate-100">
+    <div className="min-h-screen w-full flex flex-col bg-slate-50 font-sans text-slate-900 dark:bg-slate-950 dark:text-slate-100">
       <nav className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 z-20 shadow-sm shrink-0">
         <div className="flex items-center gap-8">
           <Link to="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center">
-              <ImageIcon className="w-5 h-5 text-white" />
-            </div>
+            <div className="w-8 h-8 bg-blue-600 rounded flex items-center justify-center"><ImageIcon className="w-5 h-5 text-white" /></div>
             <span className="font-bold text-xl tracking-tight text-slate-900 dark:text-white">PixelFlow</span>
           </Link>
-
           <div className="hidden md:flex items-center gap-6 text-sm font-medium text-slate-600 dark:text-slate-300">
-            <Link to="/compress-image" className="hover:text-slate-900 dark:hover:text-white transition-colors">Compress</Link>
-            <Link to="/resize-image" className="hover:text-slate-900 dark:hover:text-white transition-colors">Resize</Link>
-            <Link to="/crop-image" className="hover:text-slate-900 dark:hover:text-white transition-colors">Crop</Link>
-            <Link to="/convert-image" className="hover:text-slate-900 dark:hover:text-white transition-colors">Convert</Link>
+            <Link to="/compress-image" className="hover:text-slate-900 dark:hover:text-white">Compress</Link>
+            <Link to="/resize-image" className="hover:text-slate-900 dark:hover:text-white">Resize</Link>
+            <Link to="/crop-image" className="hover:text-slate-900 dark:hover:text-white">Crop</Link>
+            <Link to="/convert-image" className="hover:text-slate-900 dark:hover:text-white">Convert</Link>
           </div>
         </div>
-
         <div className="flex items-center gap-3 text-sm">
+          <AuthButton />
           <ProButton />
-          <button
-            onClick={() => setDarkMode((value) => !value)}
-            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300"
-            aria-label="Toggle dark mode"
-          >
+          <button onClick={() => setDarkMode((value) => !value)} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300" aria-label="Toggle dark mode">
             {darkMode ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
         </div>
       </nav>
-
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex flex-col md:flex-row">
         <aside className="hidden md:flex w-16 bg-slate-900 flex-col items-center py-6 gap-8 text-slate-400 shrink-0 z-10">
-          <Link to="/" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Home"><Home className="w-6 h-6" /></Link>
-          <Link to="/compress-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Compress"><FileArchive className="w-6 h-6" /></Link>
-          <Link to="/resize-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Resize"><ImageIcon className="w-6 h-6" /></Link>
-          <Link to="/crop-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg transition-colors" title="Crop"><Scissors className="w-6 h-6" /></Link>
+          <Link to="/" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg" title="Home"><Home className="w-6 h-6" /></Link>
+          <Link to="/compress-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg" title="Compress"><FileArchive className="w-6 h-6" /></Link>
+          <Link to="/resize-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg" title="Resize"><ImageIcon className="w-6 h-6" /></Link>
+          <Link to="/crop-image" className="p-2 hover:bg-slate-800 hover:text-white rounded-lg" title="Crop"><Scissors className="w-6 h-6" /></Link>
         </aside>
-
-        <main className="flex-1 flex flex-col min-w-0 bg-slate-100 dark:bg-slate-950 relative overflow-x-hidden overflow-y-auto">
+        <main className="flex-1 min-w-0 bg-slate-100 dark:bg-slate-950 overflow-x-hidden overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 py-4"><AdSlot /></div>
           {children}
+          <div className="max-w-7xl mx-auto px-4 py-6"><AdSlot /></div>
         </main>
       </div>
     </div>
