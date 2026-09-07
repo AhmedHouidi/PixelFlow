@@ -3,8 +3,69 @@ import ToolLayout from '@/components/layout/ToolLayout';
 import { downloadBlob } from '@/lib/utils';
 import { Download, Loader2, Sparkles } from 'lucide-react';
 
-const MAX_FILE_SIZE = 10 * 1024 * 1024;
+const MAX_FILE_SIZE = 22 * 1024 * 1024;
+const MAX_UPLOAD_SIZE = 3.8 * 1024 * 1024;
 const REMOVE_BACKGROUND_ENDPOINT = '/.netlify/functions/remove-background';
+
+const prepareUpload = async (file: File): Promise<File> => {
+  if (file.size <= MAX_UPLOAD_SIZE) return file;
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('This image could not be prepared for upload.'));
+      img.src = objectUrl;
+    });
+
+    let width = image.naturalWidth;
+    let height = image.naturalHeight;
+    const maxDimension = 3200;
+    const scale = Math.min(1, maxDimension / Math.max(width, height));
+    width = Math.max(1, Math.round(width * scale));
+    height = Math.max(1, Math.round(height * scale));
+
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Your browser could not prepare this image.');
+
+    const encode = (targetWidth: number, targetHeight: number, quality: number) => {
+      canvas.width = targetWidth;
+      canvas.height = targetHeight;
+      context.clearRect(0, 0, targetWidth, targetHeight);
+      context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+      return new Promise<Blob | null>((resolve) => {
+        canvas.toBlob(resolve, 'image/jpeg', quality);
+      });
+    };
+
+    let blob: Blob | null = null;
+    let currentWidth = width;
+    let currentHeight = height;
+
+    for (let sizePass = 0; sizePass < 5; sizePass++) {
+      for (let quality = 0.9; quality >= 0.55; quality -= 0.05) {
+        blob = await encode(currentWidth, currentHeight, quality);
+        if (blob && blob.size <= MAX_UPLOAD_SIZE) {
+          return new File([blob], `${file.name.replace(/\.[^/.]+$/, '')}.jpg`, {
+            type: 'image/jpeg',
+            lastModified: file.lastModified,
+          });
+        }
+      }
+
+      currentWidth = Math.max(1200, Math.round(currentWidth * 0.8));
+      currentHeight = Math.max(1200, Math.round(currentHeight * 0.8));
+    }
+
+    throw new Error('This image is too large to upload. Please choose a smaller image.');
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+};
 
 export default function BackgroundRemovalTool() {
   const [files, setFiles] = useState<File[]>([]);
@@ -23,7 +84,7 @@ export default function BackgroundRemovalTool() {
     }
 
     if (file.size > MAX_FILE_SIZE) {
-      alert('Please choose an image smaller than 10 MB.');
+      alert('Please choose an image smaller than 22 MB.');
       return;
     }
 
@@ -54,8 +115,9 @@ export default function BackgroundRemovalTool() {
     setProcessedUrl(null);
 
     try {
+      const uploadFile = await prepareUpload(file);
       const formData = new FormData();
-      formData.append('image_file', file, file.name);
+      formData.append('image_file', uploadFile, uploadFile.name);
 
       const response = await fetch(REMOVE_BACKGROUND_ENDPOINT, {
         method: 'POST',
