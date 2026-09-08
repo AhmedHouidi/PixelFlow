@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal';
 import ToolLayout from '@/components/layout/ToolLayout';
 import { downloadBlob } from '@/lib/utils';
 import { AdSlot, canUseFreeBackgroundRemoval, openProCheckout, recordFreeBackgroundRemoval, UsageBadge } from '@/components/monetization/Monetization';
@@ -60,15 +59,26 @@ export default function BackgroundRemovalTool() {
     setProcessedUrl(null);
 
     try {
-      // Runs entirely in the user's browser. No remove.bg API, API key, or upload server is used.
-      // IMG.LY downloads the model/WASM assets on the first run and caches them for later use.
-      const blob = await imglyRemoveBackground(file, {
-        output: {
-          format: 'image/png',
-          quality: 1,
-        },
+      const formData = new FormData();
+      formData.append('image_file', file, file.name);
+
+      const response = await fetch('/.netlify/functions/remove-bg', {
+        method: 'POST',
+        body: formData,
       });
 
+      if (!response.ok) {
+        let message = 'Please try again.';
+        try {
+          const data = await response.json();
+          message = data?.error || message;
+        } catch {
+          // Keep the generic message above.
+        }
+        throw new Error(message);
+      }
+
+      const blob = await response.blob();
       recordFreeBackgroundRemoval();
       setProcessedBlob(blob);
       setProcessedUrl(URL.createObjectURL(blob));
@@ -103,7 +113,7 @@ export default function BackgroundRemovalTool() {
 
       <div className="flex-1 text-slate-600 dark:text-slate-400">
         <p className="leading-relaxed mb-4">
-          Remove the background directly in your browser and download a transparent PNG. Your image is not uploaded to a background-removal API.
+          Remove the background from your image and download a transparent PNG.
         </p>
         <UsageBadge />
 
@@ -114,7 +124,7 @@ export default function BackgroundRemovalTool() {
               <span>Removing background...</span>
             </div>
             <p className="text-xs mt-2 text-blue-600/80 dark:text-blue-300/70">
-              The first run may take longer while the AI model is cached.
+              This usually takes just a few seconds.
             </p>
           </div>
         )}
