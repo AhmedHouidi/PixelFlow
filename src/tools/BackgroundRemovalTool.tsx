@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import imglyRemoveBackground from '@imgly/background-removal';
+import { removeBackground as imglyRemoveBackground } from '@imgly/background-removal';
 import ToolLayout from '@/components/layout/ToolLayout';
 import { downloadBlob } from '@/lib/utils';
 import { AdSlot, canUseFreeBackgroundRemoval, openProCheckout, recordFreeBackgroundRemoval, UsageBadge } from '@/components/monetization/Monetization';
