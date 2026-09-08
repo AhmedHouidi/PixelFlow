@@ -1,71 +1,11 @@
 import { useEffect, useState } from 'react';
+import imglyRemoveBackground from '@imgly/background-removal';
 import ToolLayout from '@/components/layout/ToolLayout';
 import { downloadBlob } from '@/lib/utils';
 import { AdSlot, canUseFreeBackgroundRemoval, openProCheckout, recordFreeBackgroundRemoval, UsageBadge } from '@/components/monetization/Monetization';
 import { Download, Loader2, Sparkles, Crown } from 'lucide-react';
 
 const MAX_FILE_SIZE = 22 * 1024 * 1024;
-const MAX_UPLOAD_SIZE = 3.8 * 1024 * 1024;
-const REMOVE_BACKGROUND_ENDPOINT = '/.netlify/functions/remove-bg';
-
-const prepareUpload = async (file: File): Promise<File> => {
-  if (file.size <= MAX_UPLOAD_SIZE) return file;
-
-  const objectUrl = URL.createObjectURL(file);
-
-  try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const img = new Image();
-      img.onload = () => resolve(img);
-      img.onerror = () => reject(new Error('This image could not be prepared for upload.'));
-      img.src = objectUrl;
-    });
-
-    let width = image.naturalWidth;
-    let height = image.naturalHeight;
-    const maxDimension = 3200;
-    const scale = Math.min(1, maxDimension / Math.max(width, height));
-    width = Math.max(1, Math.round(width * scale));
-    height = Math.max(1, Math.round(height * scale));
-
-    const canvas = document.createElement('canvas');
-    const context = canvas.getContext('2d');
-    if (!context) throw new Error('Your browser could not prepare this image.');
-
-    const encode = (targetWidth: number, targetHeight: number, quality: number) => {
-      canvas.width = targetWidth;
-      canvas.height = targetHeight;
-      context.clearRect(0, 0, targetWidth, targetHeight);
-      context.drawImage(image, 0, 0, targetWidth, targetHeight);
-      return new Promise<Blob | null>((resolve) => {
-        canvas.toBlob(resolve, 'image/jpeg', quality);
-      });
-    };
-
-    let blob: Blob | null = null;
-    let currentWidth = width;
-    let currentHeight = height;
-
-    for (let sizePass = 0; sizePass < 5; sizePass++) {
-      for (let quality = 0.9; quality >= 0.55; quality -= 0.05) {
-        blob = await encode(currentWidth, currentHeight, quality);
-        if (blob && blob.size <= MAX_UPLOAD_SIZE) {
-          return new File([blob], `${file.name.replace(/\.[^/.]+$/, '')}.jpg`, {
-            type: 'image/jpeg',
-            lastModified: file.lastModified,
-          });
-        }
-      }
-
-      currentWidth = Math.max(1200, Math.round(currentWidth * 0.8));
-      currentHeight = Math.max(1200, Math.round(currentHeight * 0.8));
-    }
-
-    throw new Error('This image is too large to upload. Please choose a smaller image.');
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
-};
 
 export default function BackgroundRemovalTool() {
   const [files, setFiles] = useState<File[]>([]);
@@ -120,43 +60,22 @@ export default function BackgroundRemovalTool() {
     setProcessedUrl(null);
 
     try {
-      const uploadFile = await prepareUpload(file);
-      const formData = new FormData();
-      formData.append('image_file', uploadFile, uploadFile.name);
-
-      const response = await fetch(REMOVE_BACKGROUND_ENDPOINT, {
-        method: 'POST',
-        body: formData,
+      // Runs entirely in the user's browser. No remove.bg API, API key, or upload server is used.
+      // IMG.LY downloads the model/WASM assets on the first run and caches them for later use.
+      const blob = await imglyRemoveBackground(file, {
+        output: {
+          format: 'image/png',
+          quality: 1,
+        },
       });
 
-      const contentType = response.headers.get('content-type') || '';
-
-      if (!response.ok || !contentType.startsWith('image/')) {
-        let message = `Background removal failed (${response.status}).`;
-
-        try {
-          if (contentType.includes('application/json')) {
-            const data = await response.json();
-            if (data?.error) message = data.error;
-          } else {
-            const text = await response.text();
-            if (text && text.length < 500) message = text;
-          }
-        } catch {
-          // Keep the fallback message.
-        }
-
-        throw new Error(message);
-      }
-
-      const blob = await response.blob();
       recordFreeBackgroundRemoval();
       setProcessedBlob(blob);
       setProcessedUrl(URL.createObjectURL(blob));
     } catch (error) {
       console.error('Background removal failed:', error);
       const message = error instanceof Error ? error.message : 'Please try again.';
-      alert(message);
+      alert(`Background removal failed: ${message}`);
     } finally {
       setIsProcessing(false);
     }
@@ -184,7 +103,7 @@ export default function BackgroundRemovalTool() {
 
       <div className="flex-1 text-slate-600 dark:text-slate-400">
         <p className="leading-relaxed mb-4">
-          Remove the background from your image and download a transparent PNG.
+          Remove the background directly in your browser and download a transparent PNG. Your image is not uploaded to a background-removal API.
         </p>
         <UsageBadge />
 
@@ -194,6 +113,9 @@ export default function BackgroundRemovalTool() {
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Removing background...</span>
             </div>
+            <p className="text-xs mt-2 text-blue-600/80 dark:text-blue-300/70">
+              The first run may take longer while the AI model is cached.
+            </p>
           </div>
         )}
       </div>
