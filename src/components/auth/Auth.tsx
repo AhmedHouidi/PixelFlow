@@ -28,6 +28,8 @@ function getAuthError(error: unknown) {
     'auth/too-many-requests': 'Too many attempts. Please wait a little and try again.',
     'auth/network-request-failed': 'Network error. Check your connection and try again.',
     'auth/operation-not-allowed': 'This sign-in method is not enabled in Firebase yet.',
+    'auth/unauthorized-domain': `This domain (${typeof window !== 'undefined' ? window.location.hostname : ''}) is not authorized for sign-in. Add it under Firebase Console > Authentication > Settings > Authorized domains.`,
+    'auth/configuration-not-found': 'Google sign-in is not enabled for this Firebase project yet. Enable it under Authentication > Sign-in method.',
   };
   return messages[code] || (error instanceof Error ? error.message : 'Authentication failed. Please try again.');
 }
